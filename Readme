@@ -1,0 +1,76 @@
+Método de replicación de transmisión de PostgreSQL
+Pre - requisitos
+Es necesario tener Hardware para realizar el método de replicación de transmisión de datos en PostgreSQL
+Router
+Cables LAN 
+Conexión de hardware con los distintos ordenadores
+Conectar cada pc a un puerto del router
+Verificar la IP de cada pc
+
+
+2.  Configuración de nodo maestro 
+
+Paso 1: Se inicializa la base de datos con el siguiente comando
+
+psql -U postgres -d consecionaria -h localhost -p 5432
+
+
+Paso 2: Creación de un nuevo usuario  con los privilegios de replicación  
+
+CREATE USER <user_name> REPLICATION LOGIN ENCRYPTED PASSWORD ’<password>’;
+
+
+Ejemplo:
+
+CREATE USER pc1 REPLICATION LOGIN ENCRYPTED PASSWORD ’admin’;
+
+
+
+
+
+Paso 3: Configuración de las propiedades de replicación de transmisión, se debe ingresar a la carpeta data de Postgres y modificar el postgresql.conf y editar el archivo en un editor de texto. 
+
+
+wal_level = logical 
+wal_log_hints = on 
+max_wal_senders = 8 
+max_wal_size = 1GB 
+hot_standby = on
+
+
+Paso 4: Permitir la replicación de usuarios para que actúen como servidor esclavo usando la IP de cada computadora, en el archivo pg_hba.conf 
+
+
+
+host replication pc1 192.168.0.104/32 trust
+host replication pc2 192.168.0.103/32 trust
+
+
+3. Configuración de nodo esclavo 
+
+Paso 1: Crear la copia de seguridad del nodo maestro 
+
+pg_basebackup.exe será el punto de partida para crear una copia de seguridad del nodo principal, en el nodo esclavo.
+
+pg_basebackup.exe -D .\data -h 192.168.0.100 -X stream -c fast -U pc1 -W
+
+pg_basebackup.exe -D .\data -h 192.168.0.100 -X stream -c fast -U pc2 -W
+
+
+Paso 2: Crear el archivo de configuración de replicación 
+
+Si no existe el archivo recovery.conf, cree el archivo de configuración de replicación con el mismo nombre, este archivo debe crearse en el directorio de datos de la instalación de PostgreSQL.
+
+El archivo recovery.conf debe tener los siguientes comandos:
+
+standby_mode = ‘on’
+primary_conninfo  = ‘host=<master_host> port=<postgres_port> user=<replication_user> password=<password> application_name=”host_name”’
+recovery_target_timeline = ‘latest
+
+
+En la opción de primary_conninfo se pone los datos como a continuación 
+
+primary_conninfo  = 'host=192.168.0.100 port=5432 user=postgres password=Nacional178059'
+
+
+Ahora reinicie el servidor esclavo para completar el proceso.
